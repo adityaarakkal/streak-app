@@ -1,0 +1,21 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid} {
+      // Signed-in users can read profiles (name + streak) for the leaderboard.
+      allow read: if request.auth != null;
+
+      // New profile: only your own, starting at streak 0.
+      allow create: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name', 'streak', 'lastCompleted', 'today'])
+        && request.resource.data.streak == 0;
+
+      // Updates: only your own, and the streak can rise by at most 1 per write.
+      allow update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name', 'streak', 'lastCompleted', 'today'])
+        && request.resource.data.streak is int
+        && request.resource.data.streak >= 0
+        && request.resource.data.streak <= resource.data.streak + 1;
+    }
+  }
+}
